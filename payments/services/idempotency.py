@@ -89,3 +89,19 @@ class IdempotencyStore:
                 key,
             ),
         )
+
+    def save_completed(
+        self,
+        customer_id: str,
+        key: str,
+        request_hash: str,
+        response_code: int,
+        response_body: dict,
+    ) -> None:
+        now = isoformat(self._clock.now())
+        self._conn.execute(
+            "INSERT INTO idempotency_keys (customer_id, key, request_hash, status,"
+            " response_code, response_body, created_at, updated_at)"
+            " VALUES (?, ?, ?, 'completed', ?, ?, ?, ?)",
+            (customer_id, key, request_hash, response_code, json.dumps(response_body), now, now),
+        )
