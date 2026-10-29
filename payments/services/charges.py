@@ -16,7 +16,6 @@ from payments.models import ChargeRequest
 from payments.money import exponent
 from payments.processor.client import ProcessorClient, ProcessorDeclined, ProcessorTimeout
 from payments.services.idempotency import (
-    IdempotencyConflict,
     IdempotencyKeyReused,
     IdempotencyRecord,
     IdempotencyStore,
@@ -62,8 +61,8 @@ class ChargeService:
         }
         self._log.info("charge.received", **context)
 
-        existing = self._idempotency.reserve(request.customer_id, idempotency_key, request_hash)
-        if existing is not None:
+        existing = self._idempotency.get(request.customer_id, idempotency_key)
+        if existing is not None and existing.status == "completed":
             return self._replay(existing, request_hash, context)
 
         processor_request_id = self._ids.new("preq")
@@ -85,10 +84,8 @@ class ChargeService:
                 elapsed_ms=self._elapsed_ms(started),
                 **context,
             )
-            body = {"error": "card_declined", "decline_code": exc.code}
-            self._idempotency.complete(request.customer_id, idempotency_key, 402, body)
             self._log.info("charge.failed", reason="declined", **context)
-            return 402, body
+            return 402, {"error": "card_declined", "decline_code": exc.code}
         except ProcessorTimeout:
             self._log.warning(
                 "processor.timeout",
@@ -136,7 +133,9 @@ class ChargeService:
                 ),
             )
             self._ledger.post_charge(charge_id, request.amount_minor, request.currency)
-            self._idempotency.complete(request.customer_id, idempotency_key, 201, body)
+            self._idempotency.save_completed(
+                request.customer_id, idempotency_key, request_hash, 201, body
+            )
         self._log.info(
             "charge.created",
             charge_id=charge_id,
@@ -171,8 +170,6 @@ class ChargeService:
     ) -> tuple[int, dict]:
         if record.request_hash != request_hash:
             raise IdempotencyKeyReused(record.key)
-        if record.status == "in_progress":
-            raise IdempotencyConflict(record.key)
         self._log.info("charge.replayed", response_code=record.response_code, **context)
         return record.response_code, record.response_body
 
