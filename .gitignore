@@ -5,3 +5,7 @@ __pycache__/
 .ruff_cache/
 *.db
 .env
+
+# Claude Code: personal settings and session worktrees
+.claude/settings.local.json
+.claude/worktrees/
