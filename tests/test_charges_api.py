@@ -61,6 +61,17 @@ def test_declined_charge_returns_402(charge, processor):
     assert processor.charges == []
 
 
+def test_declined_charge_can_retry_with_same_key(charge, processor):
+    """SUP-1182: after a soft decline, "Try again" in the app reuses the key."""
+    processor.queue("decline:insufficient_funds")
+    assert charge(key="key-1").status_code == 402
+
+    retry = charge(key="key-1")
+
+    assert retry.status_code == 201
+    assert len(processor.charges) == 1
+
+
 def test_processor_timeout_returns_504(charge, processor):
     processor.queue("timeout_before_processing")
 
