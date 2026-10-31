@@ -19,10 +19,15 @@ class ProcessorSettings(BaseModel):
     timeout_seconds: float = 10.0
 
 
+class NotificationSettings(BaseModel):
+    refund_webhook_url: str = "https://customer-comms.internal.example/hooks/refunds"
+
+
 class Settings(BaseModel):
     env: str = "dev"
     database_path: str = ":memory:"
     processor: ProcessorSettings = Field(default_factory=ProcessorSettings)
+    notifications: NotificationSettings = Field(default_factory=NotificationSettings)
 
 
 def load_settings(env: str | None = None) -> Settings:

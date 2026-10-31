@@ -5,6 +5,7 @@ Run locally with ``uv run uvicorn payments.main:create_app --factory``.
 
 import os
 
+import httpx
 from fastapi import FastAPI
 
 from payments.api import charges, health, refunds
@@ -18,6 +19,7 @@ from payments.processor.client import HttpProcessorClient, ProcessorClient
 from payments.services.charges import ChargeService
 from payments.services.idempotency import IdempotencyStore
 from payments.services.ledger import Ledger
+from payments.services.notifications import RefundNotifier
 from payments.services.refunds import RefundService
 from payments.settings import Settings, load_settings
 
@@ -27,6 +29,7 @@ def create_app(
     processor: ProcessorClient | None = None,
     clock: Clock | None = None,
     ids: Ids | None = None,
+    http_transport: httpx.BaseTransport | None = None,
 ) -> FastAPI:
     settings = settings or load_settings()
     clock = clock or SystemClock()
@@ -42,6 +45,9 @@ def create_app(
     conn = connect(settings.database_path)
     log = EventLogger(clock)
     ledger = Ledger(conn, ids, clock)
+    notifier = RefundNotifier(
+        conn, settings.notifications.refund_webhook_url, transport=http_transport
+    )
     services = {
         "conn": conn,
         "processor": processor,
@@ -52,11 +58,11 @@ def create_app(
         "log": log,
     }
 
-    app = FastAPI(title="payments-api", version="0.4.0")
+    app = FastAPI(title="payments-api", version="0.5.0")
     app.state.settings = settings
     app.state.ledger = ledger
     app.state.charges = ChargeService(**services)
-    app.state.refunds = RefundService(**services)
+    app.state.refunds = RefundService(**services, notifier=notifier)
     app.include_router(health.router)
     app.include_router(charges.router)
     app.include_router(refunds.router)

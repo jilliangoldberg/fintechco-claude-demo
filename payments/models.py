@@ -23,3 +23,4 @@ class RefundRequest(BaseModel):
 
     amount_minor: int | None = Field(default=None, gt=0)
     reason: str | None = Field(default=None, max_length=200)
+    notify_email: str | None = Field(default=None, max_length=254)

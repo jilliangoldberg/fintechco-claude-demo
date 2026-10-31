@@ -48,6 +48,14 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
     updated_at TEXT NOT NULL,
     PRIMARY KEY (customer_id, key)
 );
+
+CREATE TABLE IF NOT EXISTS notification_log (
+    refund_id TEXT NOT NULL,
+    customer_id TEXT NOT NULL,
+    sent_to TEXT NOT NULL,
+    status_code INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 

@@ -16,6 +16,7 @@ from payments.services.idempotency import (
     request_fingerprint,
 )
 from payments.services.ledger import Ledger
+from payments.services.notifications import RefundNotifier
 
 
 class RefundService:
@@ -29,6 +30,7 @@ class RefundService:
         ids: Ids,
         clock: Clock,
         log: EventLogger,
+        notifier: RefundNotifier | None = None,
     ) -> None:
         self._conn = conn
         self._processor = processor
@@ -37,6 +39,7 @@ class RefundService:
         self._ids = ids
         self._clock = clock
         self._log = log
+        self._notifier = notifier
 
     def create_refund(
         self, charge_id: str, request: RefundRequest, idempotency_key: str
@@ -99,6 +102,8 @@ class RefundService:
             amount_minor=amount,
             currency=charge["currency"],
         )
+        if request.notify_email and self._notifier:
+            self._notifier.refund_issued(body, customer_id, request.notify_email)
         return 201, body
 
     def _refunded_minor(self, charge_id: str) -> int:
