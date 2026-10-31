@@ -60,3 +60,19 @@ def test_no_notification_without_email(client, webhooks):
     create_refund(client)
 
     assert webhooks == []
+
+
+def test_resend_notification(client, webhooks):
+    refund = create_refund(client, notify_email="pat@example.com").json()
+
+    response = client.post(f"/v1/refunds/{refund['id']}/notifications/resend")
+
+    assert response.status_code == 202
+    assert len(webhooks) == 2
+    assert webhooks[1]["refund"]["id"] == refund["id"]
+
+
+def test_resend_unknown_refund_returns_404(client):
+    response = client.post("/v1/refunds/re_missing/notifications/resend")
+
+    assert response.status_code == 404

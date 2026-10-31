@@ -8,7 +8,7 @@ import os
 import httpx
 from fastapi import FastAPI
 
-from payments.api import charges, health, refunds
+from payments.api import charges, health, notifications, refunds
 from payments.api.errors import register_error_handlers
 from payments.api.middleware import RequestLogMiddleware
 from payments.clock import Clock, SystemClock
@@ -63,9 +63,11 @@ def create_app(
     app.state.ledger = ledger
     app.state.charges = ChargeService(**services)
     app.state.refunds = RefundService(**services, notifier=notifier)
+    app.state.notifier = notifier
     app.include_router(health.router)
     app.include_router(charges.router)
     app.include_router(refunds.router)
+    app.include_router(notifications.router)
     register_error_handlers(app)
     app.add_middleware(RequestLogMiddleware, log=log, ids=ids, clock=clock)
     return app
